@@ -1,0 +1,14 @@
+{
+  "name": "agkfr-tools",
+  "description": "agekke-friendly core marketplace — 少数かつ重要な機能のみ集約 (Phase IV)",
+  "owner": {
+    "name": "HideNaga3"
+  },
+  "plugins": [
+    {
+      "name": "af",
+      "source": "./plugins/af",
+      "description": "agekke-friendly core commands + auto commit hook. /af: prefix."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "af",
+  "description": "agekke-friendly core commands (log.read / log.write) + auto commit hook. /af: prefix.",
+  "author": {
+    "name": "HideNaga3"
+  }
+}
