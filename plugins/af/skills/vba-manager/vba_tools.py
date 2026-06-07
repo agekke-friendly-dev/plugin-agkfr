@@ -32,7 +32,7 @@ add-param例:
   python vba_tools.py add-param DebugLog "A02_Data.G_IsDebugMode" vba_modules/A01_Main.bas
   → 全てのDebugLog(...)呼び出しに第2引数を追加
 
-2026-06-07: プラグイン化
+  2026-06-07: プラグイン化、repoをプライベートに変更
 """
 import re
 import sys
