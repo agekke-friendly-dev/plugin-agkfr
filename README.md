@@ -4,6 +4,8 @@ Claude Code 用プラグイン。**セッションログ管理 + Excel VBA + 操
 
 Marketplace 名: `agkfr-tools` / Plugin 名: `af` / コマンド prefix: `/af:`
 
+> ⚠️ このリポジトリは **private** です。同僚配布は **org collaborator 招待 + HTTPS 認証セットアップ** が前提です。下記「Prerequisites（同僚 PC の初回セットアップ）」を必ず先に完了させてください。
+
 ---
 
 ## Features
@@ -24,16 +26,97 @@ Marketplace 名: `agkfr-tools` / Plugin 名: `af` / コマンド prefix: `/af:`
 
 ## Requirements
 
-- **Claude Code v2.x 以上**（Plugin システム対応版）
+- **Claude Code v2.1.141 以上**（2026-05-13 リリース、`CLAUDE_CODE_PLUGIN_PREFER_HTTPS` 環境変数サポート版以降）
+  - 確認: `claude --version`
+  - 更新: `npm i -g @anthropic-ai/claude-code`
 - **Python 3.x**（hook の実行に使用、`python` コマンドが PATH に通っていること）
+- **GitHub CLI (`gh`)**（private repo 認証用、Windows: `winget install --id GitHub.cli`）
 - **Windows + Excel + `pywin32`**（`vba-manager` skill のみ。他の機能は OS 非依存）
 - （任意）**`pip install formulas`** — `vba-manager` の数式 lint 機能を使う場合のみ
 
 ---
 
+## Prerequisites（同僚 PC の初回セットアップ）
+
+private repo からの install には、初回 1 回のみ以下のセットアップが必要です。
+
+### Step 0: org collaborator 招待を受領（事前）
+
+`agekke-friendly-dev` org への招待メールを accept してください（HideNaga3 から個別送信）。
+受領状態は以下で確認可能:
+
+```powershell
+gh api /user/memberships/orgs/agekke-friendly-dev
+```
+
+`state: "active"` なら OK。
+
+### Step 1: Claude Code を v2.1.141 以上に更新
+
+```powershell
+claude --version
+# 古ければ:
+npm i -g @anthropic-ai/claude-code
+```
+
+### Step 2: GitHub CLI をインストール
+
+```powershell
+winget install --id GitHub.cli
+```
+
+### Step 3: GitHub 認証
+
+```powershell
+gh auth login
+```
+
+対話プロンプト:
+- `GitHub.com` を選択
+- **`HTTPS`** を選択（**SSH は選ばない**、Windows での認証バグ回避）
+- `Yes (Authenticate Git with your GitHub credentials)`
+- `Login with a web browser` → ブラウザで 8 桁コード入力 → 完了
+
+### Step 4: git credential helper を gh に紐付け
+
+```powershell
+gh auth setup-git
+```
+
+これで HTTPS clone 時に `gh` の認証情報が自動で使われます。
+
+### Step 5: SSH 強制バグの保険
+
+```powershell
+git config --global url."https://github.com/".insteadOf git@github.com:
+```
+
+Claude Code が誤って SSH を使うバグへの保険（[#27771](https://github.com/anthropics/claude-code/issues/27771), [#52234](https://github.com/anthropics/claude-code/issues/52234)）。
+
+### Step 6: 環境変数 `CLAUDE_CODE_PLUGIN_PREFER_HTTPS` を永続設定
+
+```powershell
+[Environment]::SetEnvironmentVariable("CLAUDE_CODE_PLUGIN_PREFER_HTTPS", "1", "User")
+```
+
+v2.1.141 (2026-05-13) で追加された **HTTPS 強制クローンフラグ**。設定後は PowerShell とエクスプローラーを開き直してください（環境変数の再読込）。
+
+### （任意）Step 7: auto-update 用 PAT を設定
+
+Claude Code 起動時の background auto-update 用に GitHub Personal Access Token（`repo` scope）を設定:
+
+```powershell
+[Environment]::SetEnvironmentVariable("GITHUB_TOKEN", "ghp_xxxxxxxxxxxx", "User")
+```
+
+PAT は [Settings → Developer settings → Tokens (classic)](https://github.com/settings/tokens) で発行。
+これがなくても手動 `/plugin marketplace update` は動作します。
+
+---
+
 ## Installation
 
-Claude Code 内で以下を実行:
+Prerequisites 完了後、**Claude Code を再起動してから** 以下を実行:
 
 ```
 /plugin marketplace add agekke-friendly-dev/plugin-agkfr
@@ -41,7 +124,7 @@ Claude Code 内で以下を実行:
 /reload-plugins
 ```
 
-その後 **Claude Code を一度再起動**（`/exit` → 起動し直し）。
+その後 もう一度 **Claude Code を再起動**（`/exit` → 起動し直し）。
 hook は session 開始時の固定読込のため、再起動しないと有効化されない。
 
 > ⚠️ **marketplace 名と repo 名は別物**:
@@ -138,13 +221,70 @@ hook は session 開始時の固定読込のため、再起動しないと有効
 | `/plugin install` が「already installed」になる | `/plugin marketplace remove agkfr-tools` → 再 add → 再 install |
 | `/plugin update` が `(no content)` で反映確認できない | `installed_plugins.json` の `gitCommitSha` を確認、最新 commit と一致なら成功 |
 | `vba-manager` が動かない | Windows + Excel + `pip install pywin32` を確認、対象 Excel を完全に閉じてから実行 |
-| private repo にしたい | 既知バグ多数のため非推奨（[#17201](https://github.com/anthropics/claude-code/issues/17201)）|
+| `/plugin marketplace add` で `authentication failed` | `gh auth status` で認証確認、`gh auth setup-git` 再実行、`$env:CLAUDE_CODE_PLUGIN_PREFER_HTTPS` が `1` か確認 |
+| Claude Code が SSH 経由で clone してエラー | Step 5 の `insteadOf` 設定を再確認: `git config --global --get url."https://github.com/".insteadOf` が `git@github.com:` を返すこと |
+| `gh auth login` 後も org repo が見えない | collaborator 招待状を accept したか確認: `gh api /user/memberships/orgs/agekke-friendly-dev` で `state: "active"` か |
+
+---
+
+## Fallback: 認証セットアップが動かない場合
+
+Prerequisites の Step 1〜6 を完了しても `/plugin marketplace add` が失敗する場合、**手動 clone + directory source** で回避できます。
+
+### F1. PAT を発行
+
+[GitHub Settings → Developer settings → Personal access tokens (classic)](https://github.com/settings/tokens) で `repo` scope の PAT を発行。
+
+### F2. 手動 clone
+
+```powershell
+git clone https://<USER>:<PAT>@github.com/agekke-friendly-dev/plugin-agkfr.git $HOME\agkfr-mirror
+```
+
+`<USER>` は GitHub username、`<PAT>` は発行した PAT。
+
+### F3. settings.json に directory source として登録
+
+`~/.claude/settings.json` を編集:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "agkfr-tools": {
+      "source": {
+        "source": "directory",
+        "path": "C:\\Users\\<USER>\\agkfr-mirror"
+      }
+    }
+  }
+}
+```
+
+`<USER>` は Windows のユーザー名（`$env:USERNAME` で確認）。絶対パス必須。
+
+### F4. Claude Code 再起動 → install
+
+```
+/plugin install af@agkfr-tools
+/reload-plugins
+```
+
+### F5. 更新時
+
+```powershell
+cd $HOME\agkfr-mirror
+git pull
+```
+
+→ Claude Code 内で `/plugin marketplace update agkfr-tools` + `/plugin update af@agkfr-tools` + `/reload-plugins`。
+
+> ⚠️ Fallback の制約: auto-update は無効、更新は毎回 `git pull` を手動実行が必要。
 
 ---
 
 ## Links
 
-- [公式: Plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
+- [公式: Plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces) — Private repositories セクション (L508〜)
 - [公式: Plugins reference](https://code.claude.com/docs/en/plugins-reference)
 
 ---
