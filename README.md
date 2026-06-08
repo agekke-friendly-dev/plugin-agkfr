@@ -156,4 +156,6 @@ hook は session 開始時の固定読込のため、再起動しないと有効
 
 ## License
 
-社内・個人利用向け。© HideNaga3
+Copyright (c) 2026 HideNaga3. All Rights Reserved.
+
+社内・個人利用向け。第三者による複製・改変・再配布は許可していません。
