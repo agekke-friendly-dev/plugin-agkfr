@@ -120,6 +120,46 @@ project/
 
 **復元が楽**: 本番とテストでvba_modulesが分離されているため、テストで壊しても本番のvba_modulesは無傷。
 
+## macro/ 以外のフォルダ配下のワークブック
+
+ワークブックの親フォルダ名が `macro` / `macro_sub` / `macro_test` のいずれでもない場合、`vba_tools.py` の `get_vba_modules_dir` / `get_vba_modules_origin_dir` は else 分岐に入り、以下の動作になる:
+
+| 項目 | 出力先 |
+|------|--------|
+| エクスポート先（UTF-8） | `{ワークブック親フォルダ}/vba_main_modules/` |
+| エクスポート先（CP932原本） | `{ワークブック親フォルダ}/vba_main_modules_origin/` |
+
+### 仕様
+
+- **`--prod` / `--test` は実質無効**: else 分岐は `prod_mode` を見ず `vba_main_modules` 固定（テスト/本番分離なし）
+- **`--prod` / `--test` フラグ自体は必須**: 引数バリデーション（L1471-1481）でいずれか指定がないとエラー終了
+- **CLI から使えるのは `export` のみ**: 第3引数に xlsm の絶対パスを渡せば `find_workbook` の hint 直指定（L72-75）で macro/ 配下以外のワークブックを処理できる
+- **`import` / `list` / `inspect` / `run` は macro/ 配下限定**: これらのコマンドは hint を取らず `find_workbook(None)` で `.main` / `.test` を探索するため、macro/ 配下のワークブックしか対象にできない
+- **任意 xlsm で全機能を使いたい場合**: Python から直接呼び出すこと
+
+### CLI 例（export のみ）
+
+```bash
+python ${CLAUDE_PLUGIN_ROOT}/skills/vba-manager/vba_tools.py export --prod "C:/path/to/任意フォルダ/sample.xlsm"
+```
+
+### Python 直接呼び出し例
+
+```python
+from vba_tools import export_vba_modules
+export_vba_modules(workbook_path, prod_mode=False)
+```
+
+### 既存事例
+
+- `workspace/AIマクロ検証/見積書作成フォーマット_雛形0618.xlsm` （`macro/` 配下でないため本仕様で動作）
+
+### 参考
+
+- 実装: `vba_tools.py` L113-158（`get_vba_modules_dir` / `get_vba_modules_origin_dir` の else 分岐）
+- バリデーション: `vba_tools.py` L1471-1481（`--prod` / `--test` 必須チェック）
+- hint 直指定: `vba_tools.py` L72-75（`find_workbook` のフルパスバイパス）
+
 ## エンコーディング
 
 - **macro/vba_main_modules/**, **macro/vba_test_modules/**: UTF-8（Claudeで直接読み書き可能）
